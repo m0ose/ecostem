@@ -111,12 +111,10 @@ var WaterModel = function() {
     }
 
     function onChange(cb) {
-        console.log('new callback');
         callbacks.push(cb);
     }
 
     function clearCallbacks() {
-        console.log('clear callbacks');
         callbacks = [];
     }
 
