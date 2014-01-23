@@ -33,7 +33,7 @@ function TransferFunction(domain, domainUnit, range, rangeUnit, title, svgcanvas
 	transfer.search = d3.bisector(function(d) {
 		return d[0];
 	}).left;
-
+	
 	transfer.render = function() {
 		
 		//this.interpolate = Smooth(this.controlPoints, this.interpolatorOpts);
@@ -192,10 +192,10 @@ function TransferFunction(domain, domainUnit, range, rangeUnit, title, svgcanvas
 				// the user-generated spline is always a function
 				// (i.e. no two y values corresponding to the same x value)
 				if (i > 0) {
-					leftBound = transfer.controlPoints[i - 1][0];
+					leftBound = transfer.controlPoints[i - 1][0] + (range[1] - range[0])/100;
 				}
 				if (i < transfer.controlPoints.length - 1) {
-					rightBound = transfer.controlPoints[i + 1][0];
+					rightBound = transfer.controlPoints[i + 1][0] - (range[1] - range[0])/100;;
 				}
 				d[1] = transfer.yScale.invert(d3.event.y);
 				d[1] = Math.min(range[1], Math.max(range[0], d[1]));
