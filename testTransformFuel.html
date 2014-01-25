@@ -1,0 +1,238 @@
+<html>
+<head>
+
+    <meta http-equiv="content-type" content="text/html; charset=UTF8">
+    <script src="lib/underscore.js"></script>
+    <script src="lib/jquery-1.10.2.js"></script>
+    <script src="lib/d3.js"></script>
+    <script src="lib/Smooth-0.1.7.js"></script>
+    <script src="js/TransferFunction.js"></script>
+    <script type="text/javascript" src="lib/curveFit.js"></script>
+    <script type="text/javascript" src="js/anderson13Fuel.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/svg.css"/>
+<script src="//cdnjs.cloudflare.com/ajax/libs/sylvester/0.1.3/sylvester.js"></script>
+<script src="http://numericjs.com/numeric/lib/numeric-1.2.6.js"></script>
+<script src="lib/surface-plot/javascript/surfaceplot_nodeps.js"></script>
+
+
+
+<script>
+	var tran1, tran2, graph
+
+	$().ready(function(){
+		console.log('ready')
+		tran1 = new TransferFunction([0, 90], 'degrees', [0, 200], 'spread rate m/s', 'Spread rate vs Slope', 'transylvaniaSVG');
+		tran2 = new TransferFunction([0, 90], 'wind speed m/hour', [0, 2000], 'spread rate m/hour', 'Spread rate vs Wind', 'transmuteSVG');
+    graph = new setupGraph()
+    populateDrop()
+	})
+
+  function redrawIt(){
+    var cc1 = tran1.polynomialCoeffients
+    var cc2 = tran2.polynomialCoeffients
+
+    graph.setupData(    function(x,y){   
+      var val = (cc1[0] + cc2[0] + cc1[1]*x + cc2[1]*y + cc1[2]*x*x + cc2[2]*y*y + cc1[3]*x*x*x + cc2[3]*y*y*y)
+      return Math.min(3000,Math.max(0, val))
+    })
+
+    graph.redraw()
+  }
+
+  function populateDrop(){
+
+    var drop = document.getElementById('fuelDrop')
+
+    for(var i=0 ; i < 110;i++){
+      var fuel = anderson13Fuels.getFuel(i)
+      if( fuel.index != 0){
+        var option = document.createElement('option')
+        option.value = i
+        option.innerHTML = fuel.shortDescription
+        drop.appendChild(option)
+      }
+    }
+
+  }
+  function dropChanged(e){
+    var val = e.options[e.selectedIndex].value
+    console.log('changed',e,val)
+    var f  = fit(val)
+    console.log('fit',f)
+    var pnts1 = []
+    var pnts2 = []
+    if(f){
+      for(var i=0 ; i < 4; i ++){
+        var x = i*30
+        var y1 = f[0] + f[1]*x + f[3]*x*x + f[5]*x*x*x
+        var y2 = f[0] + f[2]*x + f[4]*x*x + f[6]*x*x*x  
+        y1 = Math.min(2000, Math.max(0,y1) )
+        y2 = Math.min(2000, Math.max(0,y2) )
+        pnts1.push( [x,y1])
+        pnts2.push([x,y2])
+      }
+    }
+    else{
+      pnts1 = pnts2 = [[0,0],[30,0],[60,0],[80,0]]
+    }
+    tran1.controlPoints = pnts1
+    tran2.controlPoints = pnts2
+    tran1.render()
+    tran2.render()
+    console.log(pnts1, pnts2)
+    redrawIt()
+  }
+</script>
+<script>
+function setupGraph() {
+  var numRows = 90/3;
+  var numCols = 90/3;
+  var tooltipStrings = new Array();
+  var xAxisHeader = "X SLOPE";
+  var yAxisHeader = "Y WIND";
+  var zAxisHeader = "Z";
+
+  this.setupData = function( myFunction) {
+    valFunction = function(x,y){
+        //var value = (Math.cos(i * d * Math.PI / 180.0) * Math.cos(j * d * Math.PI / 180.0));
+        var value = -8.36 + -0.214 * y + -0.499 * x + 0.0159 * y * y + 1.84 * x * x + -0.000165 * y * y * y + -0.0243 * x * x * x
+        return value
+    }
+    if(myFunction){
+      valFunction = myFunction
+    }
+    var data = {
+      values: [],
+      getNumberOfRows: function() {
+        return numRows;
+      },
+      getNumberOfColumns: function() {
+        return numCols;
+      },
+      getFormattedValue: function(i, j) {
+        return this.values[i][j];
+      }
+    };
+
+    var idx = 0;
+
+    var max = Number.MIN_VALUE
+    for (var i = 0; i < numRows; i++) {
+      data.values.push([]);
+      for (var j = 0; j < numCols; j++) {
+        var x = 3*i
+        var y = 3*j
+        var value = valFunction(x,y)
+        data.values[i].push(value );
+        tooltipStrings[idx] = "x:" + x + ", y:" + y + " = " + value;
+        idx++;
+        if( value > max){
+          max = value
+        }
+      }
+    }
+
+    console.log(value)
+    for( var i in data.values){
+      var col = data.values[i]
+      for( var j in col ){
+        data.values[i][j] = col[j]/2000
+      }
+    }
+
+    //this.options.zTitle = Math.floor(max/2)+" chains/hour"
+    this.data = data
+    return data
+  }
+
+
+  // Don't fill polygons in IE. It's too slow.
+  var fillPly = true;
+  // Define a colour gradient.
+  var colour1 = {
+    red: 0,
+    green: 0,
+    blue: 255
+  };
+  var colour2 = {
+    red: 0,
+    green: 255,
+    blue: 255
+  };
+  var colour3 = {
+    red: 0,
+    green: 255,
+    blue: 0
+  };
+  var colour4 = {
+    red: 255,
+    green: 255,
+    blue: 0
+  };
+  var colour5 = {
+    red: 255,
+    green: 0,
+    blue: 0
+  };
+  var colours = [colour1, colour2, colour3, colour4, colour5];
+
+  // Axis labels.
+
+
+  this.options = {
+    xPos: 0,
+    yPos: 0,
+    width: 700,
+    height: 700,
+    colourGradient: colours,
+    fillPolygons: fillPly,
+    tooltips: tooltipStrings,
+    xTitle: xAxisHeader,
+    yTitle: yAxisHeader,
+    zTitle: zAxisHeader,
+    restrictXRotation: false
+  };
+
+  this.data = this.setupData()
+  this.plot = new greg.ross.visualisation.SurfacePlot(document.getElementById("surfacePlotDiv"));
+
+  this.redraw = function(){
+      this.plot.draw(this.data, this.options);
+  }
+
+  this.redraw()
+}
+</script>
+</head>
+
+<body>
+  <h1>Transformers Test</h1>
+  <div id="flexy" style="display: -webkit-box; -webkit-box-orient: horizontal; -webkit-box-pack: left;">
+  <div >
+  <div class="transfer-function-test">
+    <svg id="transylvaniaSVG" width=600 height=300></svg>
+  </div>
+  <br>
+  <div class="transfer-function-test">
+    <svg id="transmuteSVG" width=600 height=300></svg>
+  </div>
+  <div>
+<a href = "javascript:redrawIt()">redraw 3d graph</a>
+</div>
+  </div>
+  <div id='surfacePlotDiv' >
+    <!-- SurfacePlot goes here... -->
+</div>
+</div>
+
+<select id="fuelDrop" onchange="dropChanged(this)">
+    <option value="" disabled="disabled" selected="selected" >Select Fuel</option>
+
+</select>
+
+</body>
+
+
+
+
+</html>
